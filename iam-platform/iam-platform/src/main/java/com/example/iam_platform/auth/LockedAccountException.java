@@ -4,7 +4,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 public class LockedAccountException extends ResponseStatusException {
+
     public LockedAccountException() {
-        super(HttpStatus.LOCKED, "Account temporarily locked. Try again in 15 minutes.");
+
+        super(
+                HttpStatus.LOCKED,
+                "Account temporarily locked due to repeated failed login attempts. Please try again later."
+        );
     }
 }

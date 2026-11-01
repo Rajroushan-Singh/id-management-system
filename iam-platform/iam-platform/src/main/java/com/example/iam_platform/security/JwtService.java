@@ -33,7 +33,14 @@ public class JwtService {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMs);
 
+        // Generate a unique JWT ID (jti)
+        String tokenId = UUID.randomUUID().toString();
+
+        // Temporary debugging statement
+        System.out.println("Generated JWT ID: " + tokenId);
+
         return Jwts.builder()
+                .id(tokenId)
                 .subject(user.getEmail())
                 .claim("userId", user.getId())
                 .claim("sessionId", sessionId.toString())
@@ -45,6 +52,15 @@ public class JwtService {
 
     public String extractEmail(String token) {
         return parseClaims(token).getSubject();
+    }
+
+    // Extract unique JWT ID (jti)
+    public String extractTokenId(String token) {
+        return parseClaims(token).getId();
+    }
+
+    public Date extractExpiration(String token) {
+        return parseClaims(token).getExpiration();
     }
 
     public UUID extractSessionId(String token) {
@@ -60,6 +76,7 @@ public class JwtService {
                     && !claims.getSubject().isBlank()
                     && claims.getExpiration() != null
                     && claims.getExpiration().after(new Date());
+
         } catch (JwtException | IllegalArgumentException exception) {
             return false;
         }

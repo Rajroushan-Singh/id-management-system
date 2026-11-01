@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import jakarta.servlet.DispatcherType;
+import com.example.iam_platform.security.RateLimitingFilter;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -49,7 +50,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            JwtAuthenticationFilter jwtAuthenticationFilter
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            RateLimitingFilter rateLimitingFilter
     ) throws Exception {
 
         http
@@ -90,8 +92,25 @@ public class SecurityConfig {
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
+                )
+
+                .addFilterBefore(
+                        rateLimitingFilter,
+                        JwtAuthenticationFilter.class
                 );
 
         return http.build();
+    }
+
+    @Bean
+    public FilterRegistrationBean<RateLimitingFilter>
+    rateLimitFilterServletRegistration(RateLimitingFilter filter) {
+
+        FilterRegistrationBean<RateLimitingFilter> registration =
+                new FilterRegistrationBean<>(filter);
+
+        registration.setEnabled(false);
+
+        return registration;
     }
 }

@@ -24,6 +24,9 @@ public class AuthService {
 
     private static final int MAX_FAILED_ATTEMPTS = 5;
 
+    private static final long BASE_LOCKOUT_MINUTES = 5;
+
+    private static final long MAX_LOCKOUT_MINUTES = 24 * 60;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
@@ -140,26 +143,74 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account is disabled");
         }
 
+//        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+//            int attempts = user.getFailedLoginAttempts() + 1;
+//            user.setFailedLoginAttempts(attempts);
+//            boolean nowLocked = attempts >= MAX_FAILED_ATTEMPTS;
+//            if (nowLocked) {
+//                user.setLockedUntil(Instant.now().plus(Duration.ofMinutes(15)));
+//            }
+//            userRepository.save(user);
+//            recordLoginAttempt(user, email, false);
+//            auditService.record(
+//                    email,
+//                    nowLocked ? "ACCOUNT_LOCKED" : "LOGIN_FAILED",
+//                    false,
+//                    null,
+//                    nowLocked ? "Account temporarily locked after failed attempts"
+//                            : "Invalid credentials; failed attempts: " + attempts
+//            );
+//            if (nowLocked) {
+//                throw new LockedAccountException();
+//            }
+//            throw new BadCredentialsException("Invalid email or password");
+//        }
+
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+
             int attempts = user.getFailedLoginAttempts() + 1;
+
             user.setFailedLoginAttempts(attempts);
+
             boolean nowLocked = attempts >= MAX_FAILED_ATTEMPTS;
+
             if (nowLocked) {
-                user.setLockedUntil(Instant.now().plus(Duration.ofMinutes(15)));
+
+                // Increment lockout cycle
+                int lockoutCount = user.getLockoutCount() + 1;
+
+                user.setLockoutCount(lockoutCount);
+
+                // Calculate exponential lockout duration
+                long lockoutMinutes =
+                        calculateLockoutDuration(lockoutCount);
+
+                // Set account lock expiration
+                user.setLockedUntil(
+                        Instant.now().plus(Duration.ofMinutes(lockoutMinutes))
+                );
             }
+
             userRepository.save(user);
+
             recordLoginAttempt(user, email, false);
+
             auditService.record(
                     email,
                     nowLocked ? "ACCOUNT_LOCKED" : "LOGIN_FAILED",
                     false,
                     null,
-                    nowLocked ? "Account temporarily locked after failed attempts"
+                    nowLocked
+                            ? "Account locked for "
+                              + calculateLockoutDuration(user.getLockoutCount())
+                              + " minutes"
                             : "Invalid credentials; failed attempts: " + attempts
             );
+
             if (nowLocked) {
                 throw new LockedAccountException();
             }
+
             throw new BadCredentialsException("Invalid email or password");
         }
 
@@ -172,8 +223,13 @@ public class AuthService {
             );
         }
 
+// Reset all lockout counters after successful login
         user.setFailedLoginAttempts(0);
+
+        user.setLockoutCount(0);
+
         user.setLockedUntil(null);
+
         userRepository.save(user);
 
         UserSession session = refreshTokenService.createSession(user);
@@ -272,8 +328,11 @@ public class AuthService {
                 passwordEncoder.encode(request.newPassword())
         );
 
-        // Clear account lockout after password recovery.
+// Reset account lockout after successful password recovery
         user.setFailedLoginAttempts(0);
+
+        user.setLockoutCount(0);
+
         user.setLockedUntil(null);
 
         userRepository.save(user);
@@ -289,4 +348,26 @@ public class AuthService {
                 "Password reset successfully"
         );
     }
+
+    // =========================================
+    // 6. setting the lock timing
+    // =========================================
+
+
+    private long calculateLockoutDuration(int lockoutCount) {
+
+        long duration = BASE_LOCKOUT_MINUTES;
+
+        for (int i = 1; i < lockoutCount; i++) {
+
+            if (duration >= MAX_LOCKOUT_MINUTES / 2) {
+                return MAX_LOCKOUT_MINUTES;
+            }
+
+            duration *= 2;
+        }
+
+        return Math.min(duration, MAX_LOCKOUT_MINUTES);
+    }
+
 }

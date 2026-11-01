@@ -1,12 +1,17 @@
 
 package com.example.iam_platform.auth;
 
+import com.example.iam_platform.security.JwtService;
+import com.example.iam_platform.security.TokenBlacklistService;
+
 import jakarta.validation.Valid;
+
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
 
@@ -16,13 +21,19 @@ public class AuthController {
 
     private final AuthService authService;
     private final RefreshTokenService refreshTokenService;
+    private final JwtService jwtService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     public AuthController(
             AuthService authService,
-            RefreshTokenService refreshTokenService
+            RefreshTokenService refreshTokenService,
+            JwtService jwtService,
+            TokenBlacklistService tokenBlacklistService
     ) {
         this.authService = authService;
         this.refreshTokenService = refreshTokenService;
+        this.jwtService = jwtService;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @PostMapping("/register")
@@ -52,17 +63,50 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(
-            @Valid @RequestBody RefreshRequest request
+            @Valid @RequestBody RefreshRequest request,
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorizationHeader
     ) {
-        refreshTokenService.revokeRefreshToken(request.refreshToken());
+
+        // Validate Authorization header
+        if (authorizationHeader == null
+                || !authorizationHeader.startsWith("Bearer ")) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Bearer token is required"
+            );
+        }
+
+        String accessToken = authorizationHeader.substring(7).trim();
+
+        // Validate access JWT
+        if (!jwtService.isTokenValid(accessToken)) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Invalid or expired access token"
+            );
+        }
+
+        // Extract JWT ID and expiration
+        String tokenId = jwtService.extractTokenId(accessToken);
+
+        var expiration = jwtService.extractExpiration(accessToken);
+
+        // Blacklist the access token until its expiration
+        tokenBlacklistService.blacklistToken(
+                tokenId,
+                expiration.toInstant()
+        );
+
+        // Revoke refresh token and its associated session
+        refreshTokenService.revokeRefreshToken(
+                request.refreshToken()
+        );
 
         return ResponseEntity.noContent().build();
     }
-
-
 
     @GetMapping("/verify-email")
     public ResponseEntity<Map<String, String>> verifyEmail(
@@ -97,6 +141,4 @@ public class AuthController {
                 "message", "Password reset successfully"
         ));
     }
-
-
 }

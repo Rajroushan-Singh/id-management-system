@@ -11,3 +11,10 @@ public class IamPlatformApplication {
 	}
 
 }
+
+
+// happy@gmail.com
+// password
+// RajAdmin@example.com
+// AdminPassword12345
+//

@@ -26,19 +26,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final Logger log =
             LoggerFactory.getLogger(JwtAuthenticationFilter.class);
-
     private final JwtService jwtService;
     private final UserRepository userRepository;
     private final UserSessionRepository userSessionRepository;
+    private final TokenBlacklistService tokenBlacklistService;
 
     public JwtAuthenticationFilter(
             JwtService jwtService,
             UserRepository userRepository,
-            UserSessionRepository userSessionRepository
+            UserSessionRepository userSessionRepository,
+            TokenBlacklistService tokenBlacklistService
     ) {
         this.jwtService = jwtService;
         this.userRepository = userRepository;
         this.userSessionRepository = userSessionRepository;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @Override
@@ -64,6 +66,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             if (!jwtService.isTokenValid(token)) {
                 log.warn("JWT validation failed");
+                reject(response);
+                return;
+            }
+            // Check whether JWT has been blacklisted
+            String tokenId = jwtService.extractTokenId(token);
+
+            if (tokenBlacklistService.isBlacklisted(tokenId)) {
+                System.out.println("Blacklisted JWT rejected: " + tokenId);
                 reject(response);
                 return;
             }

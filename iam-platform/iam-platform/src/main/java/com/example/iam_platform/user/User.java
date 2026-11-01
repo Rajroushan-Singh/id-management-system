@@ -45,6 +45,9 @@ public class User {
     @Column(name = "locked_until")
     private Instant lockedUntil;
 
+    @Column(name = "lockout_count", nullable = false)
+    private int lockoutCount = 0;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -138,5 +141,13 @@ public class User {
 
     public void setRoles(Set<Role> roles) {
         this.roles = roles;
+    }
+
+    public int getLockoutCount() {
+        return lockoutCount;
+    }
+
+    public void setLockoutCount(int lockoutCount) {
+        this.lockoutCount = lockoutCount;
     }
 }
