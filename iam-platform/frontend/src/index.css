@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-main: #F8F5EF;
+    --bg-secondary: #F0E9DE;
+    --bg-card: #FFFFFF;
+    --bg-sidebar: #EFE7DB;
+    --text-primary: #302B26;
+    --text-secondary: #797168;
+    --accent-primary: #71856B;
+    --accent-hover: #53684E;
+    --border-subtle: #E5DDD1;
+  }
+
+  body {
+    background-color: #F8F5EF;
+    color: #302B26;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'DM Sans', sans-serif;
+    letter-spacing: -0.015em;
+  }
+
+  /* Custom subtle scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #F0E9DE;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #D8CEBF;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #71856B;
+  }
+
+  /* Accessible focus indicators */
+  *:focus-visible {
+    outline: 2px solid #71856B;
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .border-subtle {
+    border-color: #E5DDD1;
+  }
+}
